@@ -1,0 +1,53 @@
+#!/bin/bash
+
+set -e;
+
+scriptname=`basename "$0"`;
+
+# process -h and --help ourselves, map --help-geany to Geany's help
+for arg in "$@"
+do
+	case $arg in
+		"-h"|"--help")
+			echo "Usage: ${scriptname} [options] dir";
+			exit 0;
+			;;
+		"--help-geany")
+			geany --help;
+			exit 0;
+			;;
+	esac
+done
+
+# take all but the last argument to pass to Geany
+args=${@:1:$(($#-1))};
+
+# last argument is taken to be the project directory
+prjdir="${@: -1}";
+if [ -z $prjdir ]
+then
+	prjdir=`pwd`;
+fi
+
+prjdir=`readlink -f "${prjdir}"`;
+prjname=`basename "${prjdir}"`;
+prjfile="${prjdir}/.geany/${prjname}.geany"
+
+mkdir -p "${prjdir}/.geany/config";
+
+if [ ! -f "${prjfile}" ]
+then
+	cat << EOF > "${prjfile}"
+[project]
+name=${prjname}
+base_path=${prjdir}/
+[VTE]
+last_dir=${prjdir}
+EOF
+fi
+
+export GEANY_PROJECT_DIR="${prjdir}";
+
+pushd "${prjdir}" > /dev/null;
+geany $args -c "${prjdir}/.geany/config" "${prjfile}" &
+popd > /dev/null;
